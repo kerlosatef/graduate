@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>The Graduation Gazette | Special Commemorative Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Special+Elite&family=Inter:wght@300;400;600;700&family=Great+Vibes&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        newsprint: {
+                            50: '#fcfbf7',
+                            100: '#fbf9f0',
+                            200: '#f5ebd0', // Classic aged vintage paper hue
+                            300: '#e5dec9',
+                            400: '#ccc3a8',
+                            900: '#1c1b18', // Deep carbon newspaper ink
+                            accent: '#8b0000', // Crimson Editorial ink
+                            gold: '#b48a3c'    // Warm gold foil
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['Playfair Display', 'Georgia', 'serif'],
+                        gothic: ['Cinzel Decorative', 'serif'],
+                        typewriter: ['Special Elite', 'Courier New', 'monospace'],
+                        script: ['Great Vibes', 'cursive'],
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Realistic newsprint paper texture overlay with fine fiber simulation */
+        .newspaper-bg {
+            background-color: #f5ebd0;
+            background-image:
+                radial-gradient(rgba(28, 27, 24, 0.05) 1px, transparent 0),
+                linear-gradient(rgba(28, 27, 24, 0.02) 1px, transparent 0);
+            background-size: 4px 4px, 100% 3px;
+        }
+
+        /* Halftone filter simulation for authentic retro look */
+        .halftone-img {
+            filter: grayscale(100%) contrast(135%) brightness(100%);
+            transition: all 0.5s ease;
+        }
+
+        .halftone-img:hover {
+            filter: grayscale(15%) contrast(110%) brightness(95%);
+        }
+
+        /* Authentic newspaper borders */
+        .border-news-double {
+            border: 4px double #1c1b18;
+        }
+
+        .border-news-thick-thin {
+            border-top: 5px solid #1c1b18;
+            border-bottom: 2px solid #1c1b18;
+        }
+
+        .border-news-thin {
+            border-bottom: 1px solid #1c1b18;
+        }
+
+        /* Continuous ticker marquee animation */
+        @keyframes marquee {
+            0% {
+                transform: translateX(0%);
+            }
+
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        .animate-marquee {
+            display: inline-flex;
+            white-space: nowrap;
+            animation: marquee 25s linear infinite;
+        }
+
+        /* Vintage filter applied directly to our Leaflet Map container */
+        #locationMap {
+            filter: sepia(0.35) contrast(0.95) brightness(0.92) grayscale(0.2);
+            border: 1px solid #1c1b18;
+        }
+
+        /* Custom scrollbar styled for vintage print look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #e5dec9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1c1b18;
+            border-radius: 4px;
+        }
+
+        /* Ticket jagged tear borders for vintage RSVP Ticket */
+        .rsvp-ticket {
+            background-image: radial-gradient(circle at top right, transparent 15px, #fbf9f0 0), radial-gradient(circle at top left, transparent 15px, #fbf9f0 0);
+        }
+
+        /* Fix Leaflet map popup sizes for forced fixed mobile layout */
+        .leaflet-popup-content {
+            margin: 4px !important;
+            font-size: 6px !important;
+            line-height: 1.2 !important;
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 2px !important;
+            padding: 2px !important;
+        }
+
+        .leaflet-popup-tip-container {
+            width: 10px !important;
+            height: 10px !important;
+            margin-left: -5px !important;
+        }
+
+        @media (min-width: 640px) {
+            .leaflet-popup-content {
+                font-size: 12px !important;
+                margin: 10px !important;
+            }
+        }
+    </style>
+</head>
+
+<body
+    class="newspaper-bg text-newsprint-900 font-sans min-h-screen overflow-x-hidden relative selection:bg-newsprint-900 selection:text-newsprint-200">
+
+    <audio id="bgMusic" loop>
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="fixed bottom-6 left-6 z-40 flex flex-col gap-3">
+        <button id="musicToggleBtn" onclick="toggleMusic()"
+            class="bg-newsprint-900 hover:bg-newsprint-300 text-newsprint-100 hover:text-newsprint-900 border-2 border-newsprint-900 p-3 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95"
+            title="Play Classic Editorial Music">
+            <i id="musicIcon" class="fas fa-play text-lg"></i>
+        </button>
+    </div>
+
+    <main id="mainNewspaper"
+        class="max-w-4xl mx-auto shadow-2xl relative bg-[#fbf9f0]/95 min-h-screen pb-24 border-x-2 sm:border-x-4 border-double border-newsprint-900 px-2 sm:px-6 md:px-8 py-4 md:py-8">
+
+        <header class="text-center pb-3 sm:pb-4 border-b-4 border-newsprint-900">
+            <div
+                class="flex flex-row justify-between items-center text-[6px] sm:text-xs font-typewriter uppercase border-b border-newsprint-900 pb-1 sm:pb-2 mb-1 sm:mb-2 gap-0">
+                <span
+                    class="bg-newsprint-900 text-newsprint-100 px-1 sm:px-2 py-0.5 rounded-sm text-[5px] sm:text-[10px] leading-tight">EXTRA
+                    EDITION</span>
+                <span id="dateHeader" class="italic font-semibold text-[5px] sm:text-xs truncate px-1">Saturday, June
+                    20, 2027 | Vol. CXXV No. 24</span>
+                <span class="text-newsprint-900/80 leading-tight">PRICE: ONE SMILE & GOOD WISH</span>
+            </div>
+
+            <h1
+                class="font-gothic text-[9vw] sm:text-[7vw] md:text-6xl lg:text-7xl font-black tracking-tight sm:tracking-tighter my-2 uppercase text-newsprint-900 leading-none sm:leading-tight">
+                The Graduation News
+            </h1>
+
+            <div
+                class="border-y-2 border-newsprint-900 py-1 flex flex-row justify-between items-center text-[5px] sm:text-xs font-typewriter italic px-1 md:px-2 gap-1 sm:gap-0">
+                <span class="truncate leading-tight">CIRCULATION: FAMILY & FRIENDS</span>
+                <span
+                    class="text-newsprint-gold font-bold tracking-tight text-[4px] sm:text-xs uppercase text-center shrink-0 leading-tight">★
+                    ★ ★ HONORED FOR OUTSTANDING ACHIEVEMENTS ★ ★ ★</span>
+                <span class="shrink-0 leading-tight">WEATHER: BRIGHT FUTURES</span>
+            </div>
+        </header>
+
+        <section class="py-4 sm:py-6 relative">
+
+            <div
+                class="flex justify-between items-center border-b-2 border-newsprint-900 pb-2 sm:pb-3 mb-2 sm:mb-4 gap-1 sm:gap-2">
+                <div
+                    class="border border-newsprint-900 p-0.5 sm:p-2 font-typewriter text-center text-[5px] sm:text-xs font-bold w-12 sm:w-28 bg-newsprint-900 text-newsprint-100 shrink-0 leading-tight">
+                    BREAKING<br>NEWS
+                </div>
+
+                <div class="flex items-center gap-1 sm:gap-2 text-center">
+                    <span class="text-[8px] sm:text-xl font-bold text-newsprint-900">✵</span>
+                    <h2
+                        class="font-serif font-black text-[9px] sm:text-xl md:text-2xl lg:text-3xl tracking-normal sm:tracking-widest uppercase text-newsprint-900">
+                        Graduation news</h2>
+                    <span class="text-[8px] sm:text-xl font-bold text-newsprint-900">✵</span>
+                </div>
+
+                <div
+                    class="border border-newsprint-900 p-0.5 sm:p-2 font-typewriter text-center text-[5px] sm:text-xs font-bold w-12 sm:w-28 shrink-0 leading-tight">
+                    SPECIAL<br>EDITION
+                </div>
+            </div>
+
+            <div class="text-center my-1 sm:my-2">
+                <span id="labelClassYear"
+                    class="font-serif italic text-xs sm:text-2xl font-bold text-newsprint-900">Class of 2026</span>
+            </div>
+
+            <div class="text-center py-2 sm:py-4 relative">
+                <div class="inline-block relative">
+                    <svg class="w-6 h-6 sm:w-12 sm:h-12 absolute -top-3 -left-3 sm:-top-8 sm:-left-8 transform -rotate-12 fill-newsprint-900 stroke-newsprint-gold stroke-[2]"
+                        viewBox="0 0 100 100">
+                        <polygon points="50,15 90,35 50,55 10,35" />
+                        <rect x="35" y="45" width="30" height="20" rx="2" />
+                        <path d="M75,43 L85,70" stroke-width="3" stroke-linecap="round" />
+                        <circle cx="85" cy="70" r="3" fill="#b48a3c" />
+                    </svg>
+                    <h3
+                        class="font-serif font-black text-3xl sm:text-7xl md:text-8xl tracking-tight text-newsprint-900 uppercase">
+                        YOU DID IT!
+                    </h3>
+                </div>
+            </div>
+
+            <div class="border-news-double py-1 sm:py-2 text-center my-3 sm:my-4 bg-newsprint-900 text-newsprint-100">
+                <h2 id="gradNamePlate"
+                    class="font-serif font-bold text-sm sm:text-4xl md:text-5xl tracking-widest uppercase py-0.5 sm:py-1 px-2">
+                    Kerlos Atef Eskaros
+                </h2>
+            </div>
+
+            <div class="grid grid-cols-12 gap-1.5 sm:gap-6 border-b-4 border-newsprint-900 pb-4 sm:pb-6 items-stretch">
+
+                <div
+                    class="col-span-3 border-r border-dashed border-newsprint-900/40 pr-1.5 sm:pr-4 flex flex-col justify-start text-left">
+                    <span id="displayLeftNum"
+                        class="block font-serif font-black text-2xl sm:text-8xl leading-none text-newsprint-900 tracking-tighter text-center italic mt-1 sm:mt-0">
+                        20
+                    </span>
+                    <div class="w-full h-[1px] sm:h-0.5 bg-newsprint-900 my-1 sm:my-3"></div>
+                    <p id="displayLeftColText"
+                        class="font-serif text-[6px] sm:text-sm leading-tight sm:leading-relaxed text-justify text-newsprint-900/90 whitespace-pre-line px-0 sm:px-1">
+                        Today represents an important milestone in your journey, and we celebrate all that you have
+                        achieved. Your commitment and effort have led you to this extraordinary moment, and you are now
+                        poised to embrace the thrilling new opportunities that await you.
+                    </p>
+                </div>
+
+                <div
+                    class="col-span-6 flex flex-col items-center justify-start p-1 sm:p-3 bg-newsprint-900 text-newsprint-200 rounded-sm shadow-md">
+                    <span
+                        class="text-[4px] sm:text-[9px] font-typewriter tracking-wider sm:tracking-widest uppercase text-newsprint-300 pb-1 text-center">Historic
+                        Plate I: Archival Childhood Record</span>
+
+                    <div
+                        class="w-full aspect-square bg-stone-950 relative overflow-hidden border sm:border-4 border-double border-newsprint-300 group">
+                        <img id="childhoodImg"
+                            src="https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?q=80&w=600"
+                            alt="Childhood Memory" class="w-full h-full object-cover halftone-img"
+                            onerror="this.src='https://placehold.co/600x600/1c1b18/e5dec9?text=Childhood+Photo'">
+
+                        <div
+                            class="absolute bottom-1 sm:bottom-2 inset-x-1 sm:inset-x-2 bg-newsprint-900/95 backdrop-blur-xs p-0.5 md:p-2 text-center border border-newsprint-400">
+                            <p class="text-[5px] sm:text-[10px] font-typewriter text-newsprint-200 leading-tight">The
+                                ambitious youngster who pursued the ultimate path</p>
+                        </div>
+                    </div>
+
+                    <span
+                        class="text-[5px] sm:text-[10px] font-serif italic text-newsprint-300 mt-1 sm:mt-2 text-center">Circa
+                        Early Childhood Days — Marked for Greatness</span>
+                </div>
+
+                <div
+                    class="col-span-3 border-l border-dashed border-newsprint-900/40 pl-1.5 sm:pl-4 flex flex-col justify-end text-left">
+                    <p id="displayRightColText"
+                        class="font-serif text-[6px] sm:text-sm leading-tight sm:leading-relaxed text-justify text-newsprint-900/90 whitespace-pre-line px-0 sm:px-1">
+                        Pause for a moment to celebrate your achievements and contemplate the memories and experiences
+                        that have contributed to the amazing person you are today. You truly deserve this time, and we
+                        are excited to join you in this celebration.
+                    </p>
+                    <div class="w-full h-[1px] sm:h-0.5 bg-newsprint-900 my-1 sm:my-3"></div>
+                    <span id="displayRightNum"
+                        class="block font-serif font-black text-2xl sm:text-8xl leading-none text-newsprint-900 tracking-tighter text-center italic mb-1 sm:mb-0">
+                        26
+                    </span>
+                </div>
+
+            </div>
+
+            <div class="border-news-double py-1 sm:py-1.5 my-3 sm:my-4 bg-newsprint-100 overflow-hidden relative">
+                <div
+                    class="flex whitespace-nowrap gap-3 sm:gap-12 font-serif font-black text-[10px] sm:text-2xl text-newsprint-900 tracking-widest uppercase animate-marquee">
+                    <span>✧ Hats Off To The Graduate ✧ Congratulations ✧ An Unbelievable Milestone Reached ✧ Bravo ✧
+                        Success ✧ Hats Off To The Graduate ✧ Congratulations ✧ An Unbelievable Milestone Reached ✧ Bravo
+                        ✧ Success </span>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-4 sm:py-8 border-b-4 border-newsprint-900">
+            <div class="grid grid-cols-12 gap-2 sm:gap-8 items-stretch">
+
+                <div class="col-span-6 flex flex-col items-center justify-between text-center px-0.5 sm:px-2">
+                    <div>
+                        <span
+                            class="font-script text-lg sm:text-4xl text-newsprint-accent leading-none block">The</span>
+                        <h3
+                            class="font-serif font-bold text-xs sm:text-3xl tracking-widest text-newsprint-900 uppercase mt-0.5 sm:mt-1 mb-1 sm:mb-2 leading-tight">
+                            LOCATION</h3>
+                        <p id="displayAddress"
+                            class="font-typewriter text-[5px] sm:text-xs text-newsprint-900/70 tracking-wider uppercase mb-1.5 sm:mb-6 leading-tight">
+                            Abu Hagar Hall, Kafr El-Shaikh
+                        </p>
+                    </div>
+
+                    <div
+                        class="w-full h-32 sm:h-64 md:h-80 shadow-md border-news-double relative rounded-sm overflow-hidden bg-neutral-200 mt-auto">
+                        <div id="locationMap" class="w-full h-full z-10"></div>
+                        <div
+                            class="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 bg-[#fbf9f0] border border-newsprint-900 text-[4px] sm:text-[9px] px-1 sm:px-2 py-0.5 z-20 font-typewriter">
+                            Interactive Map
+                        </div>
+                    </div>
+                    <p id="displayVenue"
+                        class="font-serif font-black italic text-[7px] sm:text-base text-newsprint-900 mt-2 sm:mt-4 leading-tight">
+                        Venue: Abu Hagar Hall
+                    </p>
+                </div>
+
+                <div
+                    class="col-span-6 w-full border border-newsprint-900 p-1.5 sm:p-4 bg-[#1c1b18] text-newsprint-200 rounded-sm text-center flex flex-col justify-center self-center shadow-lg">
+                    <span
+                        class="font-typewriter text-[6px] sm:text-xs tracking-widest uppercase text-newsprint-gold block mb-2 sm:mb-3">
+                        Countdown to Celebration
+                    </span>
+
+                    <div class="grid grid-cols-4 gap-0.5 sm:gap-2 text-center mb-2 sm:mb-4">
+                        <div class="bg-stone-900 p-0.5 sm:p-3 border border-newsprint-400">
+                            <span id="timerDays"
+                                class="block font-typewriter font-black text-xs sm:text-3xl text-newsprint-100 leading-tight">00</span>
+                            <span
+                                class="text-[5px] sm:text-[10px] font-serif uppercase tracking-wider text-newsprint-300">Days</span>
+                        </div>
+                        <div class="bg-stone-900 p-0.5 sm:p-3 border border-newsprint-400">
+                            <span id="timerHours"
+                                class="block font-typewriter font-black text-xs sm:text-3xl text-newsprint-100 leading-tight">00</span>
+                            <span
+                                class="text-[5px] sm:text-[10px] font-serif uppercase tracking-wider text-newsprint-300">Hrs</span>
+                        </div>
+                        <div class="bg-stone-900 p-0.5 sm:p-3 border border-newsprint-400">
+                            <span id="timerMinutes"
+                                class="block font-typewriter font-black text-xs sm:text-3xl text-newsprint-100 leading-tight">00</span>
+                            <span
+                                class="text-[5px] sm:text-[10px] font-serif uppercase tracking-wider text-newsprint-300">Min</span>
+                        </div>
+                        <div class="bg-stone-900 p-0.5 sm:p-3 border border-newsprint-400">
+                            <span id="timerSeconds"
+                                class="block font-typewriter font-black text-xs sm:text-3xl text-newsprint-gold leading-tight">00</span>
+                            <span
+                                class="text-[5px] sm:text-[10px] font-serif uppercase tracking-wider text-newsprint-300">Sec</span>
+                        </div>
+                    </div>
+
+                    <p
+                        class="font-serif text-[6px] sm:text-xs text-newsprint-300 italic leading-tight sm:leading-relaxed">
+                        Join us as we stand together to watch our extraordinary graduate walk across the historical
+                        commencement stage.
+                    </p>
+                </div>
+        </section>
+
+        <section class="py-6 sm:py-10 border-b-4 border-newsprint-900">
+            <div class="text-center mb-4 sm:mb-8">
+                <span
+                    class="font-typewriter text-[8px] sm:text-xs text-newsprint-gold uppercase tracking-widest block mb-1">THE
+                    PHOTO CHRONICLES</span>
+                <h3 class="font-serif font-black text-lg sm:text-3xl text-newsprint-900">ARCHIVAL ALBUM & MEMORY LANE
+                </h3>
+                <p class="text-[7px] sm:text-xs font-typewriter text-newsprint-900/60 mt-1">Shedding light on the
+                    journey, from late-night studying to the grand victory.</p>
+            </div>
+
+            <div class="grid grid-cols-3 gap-1 sm:gap-6 pt-2 sm:pt-4 w-full">
+
+                <div
+                    class="bg-newsprint-100 border border-newsprint-400 p-1 sm:p-3 shadow-md transform -rotate-1 hover:rotate-0 transition-transform duration-300 flex flex-col justify-between overflow-hidden min-w-0">
+                    <div
+                        class="aspect-[4/5] bg-neutral-900 overflow-hidden relative border border-newsprint-900 w-full">
+                        <svg class="w-4 h-4 sm:w-8 sm:h-8 absolute -top-1 left-1 sm:left-4 z-20 drop-shadow"
+                            viewBox="0 0 100 100" fill="none">
+                            <path
+                                d="M30,50 L30,20 C30,10 40,5 50,5 C60,5 70,10 70,20 L70,70 C70,80 60,90 50,90 C40,90 30,80 30,70 L30,35"
+                                stroke="#7f8c8d" stroke-width="8" stroke-linecap="round" />
+                        </svg>
+                        <img id="archGradImg"
+                            src="https://images.unsplash.com/photo-1627556704302-624285497823?q=80&w=600"
+                            alt="Graduation Portrait" class="w-full h-full object-cover halftone-img"
+                            onerror="this.src='https://placehold.co/400x500/1c1b18/e5dec9?text=Graduation'">
+                    </div>
+                    <div class="pt-1.5 sm:pt-3 text-center px-0.5">
+                        <span
+                            class="font-typewriter text-[4px] sm:text-xs font-bold text-newsprint-900 block leading-tight break-words truncate sm:whitespace-normal">The
+                            Golden Moment</span>
+                        <span
+                            class="text-[3px] sm:text-[9px] font-serif italic text-newsprint-900/60 mt-0.5 block leading-tight break-words truncate sm:whitespace-normal">Official
+                            Commencement Portrait</span>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-newsprint-100 border border-newsprint-400 p-1 sm:p-3 shadow-md transform rotate-2 hover:rotate-0 transition-transform duration-300 flex flex-col justify-between overflow-hidden min-w-0">
+                    <div
+                        class="aspect-[4/5] bg-neutral-900 overflow-hidden relative border border-newsprint-900 w-full">
+                        <img id="archImg1" src="https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=600"
+                            alt="Late Night Archive" class="w-full h-full object-cover halftone-img"
+                            onerror="this.src='https://placehold.co/400x500/1c1b18/e5dec9?text=Study+Archive'">
+                    </div>
+                    <div class="pt-1.5 sm:pt-3 text-center px-0.5">
+                        <span
+                            class="font-typewriter text-[4px] sm:text-xs font-bold text-newsprint-900 block leading-tight break-words truncate sm:whitespace-normal">Midnight
+                            Oil Burning</span>
+                        <span
+                            class="text-[3px] sm:text-[9px] font-serif italic text-newsprint-900/60 mt-0.5 block leading-tight break-words truncate sm:whitespace-normal">Unpublished
+                            study chronicles</span>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-newsprint-100 border border-newsprint-400 p-1 sm:p-3 shadow-md transform -rotate-2 hover:rotate-0 transition-transform duration-300 flex flex-col justify-between overflow-hidden min-w-0">
+                    <div
+                        class="aspect-[4/5] bg-neutral-900 overflow-hidden relative border border-newsprint-900 w-full">
+                        <img id="archImg2" src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=600"
+                            alt="Campus Archive" class="w-full h-full object-cover halftone-img"
+                            onerror="this.src='https://placehold.co/400x500/1c1b18/e5dec9?text=Campus+Archive'">
+                    </div>
+                    <div class="pt-1.5 sm:pt-3 text-center px-0.5">
+                        <span
+                            class="font-typewriter text-[4px] sm:text-xs font-bold text-newsprint-900 block leading-tight break-words truncate sm:whitespace-normal">Campus
+                            Landmarks</span>
+                        <span
+                            class="text-[3px] sm:text-[9px] font-serif italic text-newsprint-900/60 mt-0.5 block leading-tight break-words truncate sm:whitespace-normal">Where
+                            countless milestones began</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section class="py-6 sm:py-10">
+            <div class="text-center mb-4 sm:mb-8">
+                <h3 class="font-serif font-black text-xl sm:text-4xl text-newsprint-900 tracking-wider">RSVP</h3>
+                <div class="w-12 sm:w-16 h-0.5 bg-newsprint-900 mx-auto my-1.5 sm:my-2"></div>
+                <p class="text-[7px] sm:text-xs font-typewriter text-newsprint-900/60 mt-1">Please confirm your
+                    attendance using our digital RSVP form below.</p>
+            </div>
+
+            <div
+                class="max-w-xl mx-auto border-2 border-dashed border-newsprint-900 bg-[#fbf9f0] p-3 sm:p-6 rounded-md shadow-md relative">
+                <div class="border-news-double p-3 sm:p-6 text-center space-y-4">
+                    <span
+                        class="font-typewriter text-[10px] sm:text-[11px] text-newsprint-accent font-bold tracking-widest uppercase block">COMMENCEMENT
+                        INVITATION CARDS</span>
+
+                    <h4 class="font-serif font-bold text-xl sm:text-2xl text-newsprint-900 tracking-tight">ADMIT ONE
+                        RECIPIENT</h4>
+                    <p
+                        class="font-serif text-xs sm:text-sm text-newsprint-900/80 leading-relaxed italic max-w-sm mx-auto">
+                        "Your presence is our greatest milestone blessing. Kindly reply to facilitate official seats
+                        allocation in our Grand Symphony Hall."
+                    </p>
+
+                    <div class="flex items-center justify-center gap-2">
+                        <div class="h-0.5 w-12 bg-newsprint-900"></div>
+                        <span class="text-newsprint-gold">★</span>
+                        <div class="h-0.5 w-12 bg-newsprint-900"></div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="pt-2">
+                            <a id="rsvpFormLink" href="#" target="_blank"
+                                class="inline-flex items-center gap-2 sm:gap-3 bg-newsprint-900 hover:bg-newsprint-accent text-newsprint-100 font-typewriter text-[10px] sm:text-xs font-bold uppercase py-3 px-4 sm:px-6 rounded shadow transition-all duration-300 transform hover:scale-105 active:scale-95 border-2 border-newsprint-900 tracking-wider">
+                                <i class="fas fa-envelope-open-text"></i>
+                                <span>Complete RSVP on Google Forms</span>
+                            </a>
+                        </div>
+
+                        <div id="embedFormContainer"
+                            class="hidden w-full pt-4 border-t border-dashed border-newsprint-900">
+                            <div class="relative w-full overflow-hidden rounded shadow border-news-double h-[500px]">
+                                <iframe id="rsvpFormIframe" src="" class="w-full h-full" frameborder="0"
+                                    marginheight="0" marginwidth="0">Loading Google RSVP Form...</iframe>
+                            </div>
+                        </div>
+
+                        <p class="text-[9px] font-typewriter text-newsprint-900/50 mt-1 max-w-xs mx-auto">
+                            *This portal routes directly to Google Forms for secure digital attendance records.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 pt-8 border-t-4 border-newsprint-900 text-center space-y-4">
+            <div class="flex justify-center gap-3">
+                <span class="text-newsprint-gold">★</span>
+                <span class="text-newsprint-gold">★</span>
+                <span class="text-newsprint-gold">★</span>
+            </div>
+
+            <p id="footerGraduateName" class="font-gothic text-xl sm:text-2xl text-newsprint-900 tracking-wider">
+                Kerlos Atef Eskaros
+            </p>
+
+            <div
+                class="flex flex-col sm:flex-row justify-between items-center text-[10px] sm:text-xs font-typewriter text-newsprint-900/60 max-w-xl mx-auto border-t border-newsprint-900/30 pt-4 gap-2">
+                <span>The Graduation News © 2026</span>
+                <span class="italic">Printed with honor and digital innovation</span>
+            </div>
+        </footer>
+
+    </main>
+
+    <div id="toast"
+        class="fixed bottom-6 left-6 bg-newsprint-900 text-newsprint-100 border-2 border-newsprint-gold px-5 py-3 rounded shadow-2xl z-50 flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none font-typewriter">
+        <i class="fas fa-check-circle text-newsprint-gold text-lg"></i>
+        <span id="toastMessage" class="text-xs">Operation successful!</span>
+    </div>
+
+    <script>
+
+        // =========================================================================
+        //  قائمة المتغيرات الرئيسية - يمكنك تعديل أي بيانات هنا يدوياً في VS Code
+        // =========================================================================
+        const newspaperState = {
+            name: "𝒮𝓊𝒶𝒹 𝒦𝒽𝒶𝓁𝒾𝒹", // الاسم الكامل للخريج
+            classYear: "Class of 2026",    // دفعة التخرج
+            leftNum: "20",                // الرقم الكبير بالعمود الأيسر
+            rightNum: "26",               // الرقم الكبير بالعمود الأيمن
+
+            // روابط الصور (يمكنك استبدالها بروابط صورك الخاصة)
+            childImg: "https://i.postimg.cc/XJq8Lyk4/638d1bc92da9bc246acdc65e8a086afb.jpg",
+            gradImg: "https://i.pinimg.com/736x/74/ae/4c/74ae4c2eb38f402e031ee3b6c39e7c55.jpg",
+            arch1: "https://i.postimg.cc/JnXQSCSM/albnt-atkhrjt-202607042116-(1).jpg",
+            arch2: "https://i.postimg.cc/tRh55yhx/albnt-atkhrjt-202607042116.jpg",
+
+            // النصوص داخل الأعمدة
+            leftColText: `Today represents an important milestone in your journey, and we celebrate all that you have achieved. Your commitment and effort have led you to this extraordinary moment, and you are now poised to embrace the thrilling new opportunities that await you.`,
+            rightColText: `Pause for a moment to celebrate your achievements and contemplate the memories and experiences that have contributed to the amazing person you are today. You truly deserve this time, and we are excited to join you in this celebration.`,
+
+            // توقيت ومكان الحفلة لإعداد العداد التنازلي والخريطة
+            countdownTarget: "2026-08-03T16:00", // السنة-الشهر-اليوم ثم الحرف T ثم الساعة بالصيغة 24 ساعة
+            venue: "Abu Hagar Hall",              // اسم القاعة
+            address: "Abu Hagar Hall, Kafr El-Shaikh", // العنوان المكتوب بالتفصيل
+
+            // إحداثيات الخريطة الدقيقة (Latitude & Longitude) لـ Kafr El-Shaikh
+            lat: 31.1107,
+            lng: 30.9388,
+
+            // رابط الـ Google Form الخاص بالـ RSVP
+            googleFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLSfD_NleKEx_CclF7u6A98S_8eU9lX5P7fS69D7Z8X3Fw-vKAg/viewform?usp=sf_link",
+            embedForms: false // اجعلها true إذا كنت تريد عرض الفورم مباشرة داخل الصفحة بدلاً من فتح رابط خارجي
+        };
+        // =========================================================================
+
+        let countdownTimerInterval = null;
+        let mapInstance = null;
+        let mapMarker = null;
+
+        // Start everything on Window Load
+        window.onload = function () {
+            // Apply standard custom state directly
+            applyState();
+            initLocationMap();
+            startCountdown();
+
+            // Refresh map dimensions to guarantee responsiveness
+            setTimeout(() => {
+                if (mapInstance) {
+                    mapInstance.invalidateSize();
+                }
+            }, 600);
+        };
+
+        // Apply state properties to visible HTML components
+        function applyState() {
+            document.getElementById('labelClassYear').innerText = newspaperState.classYear;
+            document.getElementById('gradNamePlate').innerText = newspaperState.name;
+            document.getElementById('displayLeftNum').innerText = newspaperState.leftNum;
+            document.getElementById('displayRightNum').innerText = newspaperState.rightNum;
+            document.getElementById('displayLeftColText').innerText = newspaperState.leftColText;
+            document.getElementById('displayRightColText').innerText = newspaperState.rightColText;
+            document.getElementById('childhoodImg').src = newspaperState.childImg;
+
+            document.getElementById('archGradImg').src = newspaperState.gradImg;
+            document.getElementById('archImg1').src = newspaperState.arch1;
+            document.getElementById('archImg2').src = newspaperState.arch2;
+
+            document.getElementById('displayVenue').innerText = "Venue: " + newspaperState.venue;
+            document.getElementById('displayAddress').innerText = newspaperState.address;
+            document.getElementById('footerGraduateName').innerText = newspaperState.name;
+
+            // Configure RSVP link
+            document.getElementById('rsvpFormLink').href = newspaperState.googleFormUrl;
+
+            // Show or Hide Iframe depending on configuration preference
+            const embedContainer = document.getElementById('embedFormContainer');
+            const iframe = document.getElementById('rsvpFormIframe');
+            if (newspaperState.embedForms && newspaperState.googleFormUrl) {
+                embedContainer.classList.remove('hidden');
+                let iframeSrc = newspaperState.googleFormUrl;
+                if (iframeSrc.includes('/viewform')) {
+                    iframeSrc = iframeSrc.replace('/viewform', '/embeddedform');
+                }
+                iframe.src = iframeSrc;
+            } else {
+                embedContainer.classList.add('hidden');
+            }
+        }
+
+        // Initialize Leaflet Map
+        function initLocationMap() {
+            try {
+                if (mapInstance) {
+                    mapInstance.remove();
+                }
+
+                const pos = [newspaperState.lat, newspaperState.lng];
+                mapInstance = L.map('locationMap', {
+                    center: pos,
+                    zoom: 14,
+                    zoomControl: false
+                });
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(mapInstance);
+
+                const redPinIcon = L.divIcon({
+                    html: `<div class="relative"><i class="fas fa-map-marker-alt text-newsprint-accent text-3xl drop-shadow"></i><span class="absolute -top-1 -right-1 flex h-3.5 w-3.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-newsprint-accent"></span></span></div>`,
+                    className: 'custom-pin-marker',
+                    iconSize: [24, 32],
+                    iconAnchor: [12, 32]
+                });
+
+                mapMarker = L.marker(pos, { icon: redPinIcon }).addTo(mapInstance);
+                mapMarker.bindPopup(`<div class="w-24 sm:w-auto overflow-hidden break-words"><b class="font-serif leading-tight block">${newspaperState.venue}</b><span class="font-typewriter text-[6px] sm:text-xs mt-1 block">${newspaperState.address}</span></div>`).openPopup();
+
+            } catch (err) {
+                console.warn("Could not load Map instance fully", err);
+            }
+        }
+
+        // Countdown timer mechanics
+        function startCountdown() {
+            if (countdownTimerInterval) {
+                clearInterval(countdownTimerInterval);
+            }
+
+            const daysNode = document.getElementById('timerDays');
+            const hoursNode = document.getElementById('timerHours');
+            const minutesNode = document.getElementById('timerMinutes');
+            const secondsNode = document.getElementById('timerSeconds');
+
+            function updateTime() {
+                const targetTime = new Date(newspaperState.countdownTarget).getTime();
+                const now = new Date().getTime();
+                const difference = targetTime - now;
+
+                if (difference <= 0) {
+                    daysNode.innerText = "00";
+                    hoursNode.innerText = "00";
+                    minutesNode.innerText = "00";
+                    secondsNode.innerText = "00";
+                    clearInterval(countdownTimerInterval);
+                    return;
+                }
+
+                const d = Math.floor(difference / (1000 * 60 * 60 * 24));
+                const h = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((difference % (1000 * 60)) / 1000);
+
+                daysNode.innerText = d < 10 ? '0' + d : d;
+                hoursNode.innerText = h < 10 ? '0' + h : h;
+                minutesNode.innerText = m < 10 ? '0' + m : m;
+                secondsNode.innerText = s < 10 ? '0' + s : s;
+            }
+
+            updateTime();
+            countdownTimerInterval = setInterval(updateTime, 1000);
+        }
+
+        // Ambient Audio toggler
+        function toggleMusic() {
+            const music = document.getElementById('bgMusic');
+            const icon = document.getElementById('musicIcon');
+
+            if (music.paused) {
+                music.play().then(() => {
+                    icon.className = "fas fa-pause text-lg";
+                    showToast("🎵 Soft background jazz melodies started");
+                }).catch(err => {
+                    console.warn("Audio initiation caught", err);
+                    showToast("⚠️ Tap again to grant browser audio rights");
+                });
+            } else {
+                music.pause();
+                icon.className = "fas fa-play text-lg";
+                showToast("🔇 Audio playback muted");
+            }
+        }
+
+        // Toast Alert Messages
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+
+            toastMsg.innerText = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 4000);
+        }
+    </script>
+</body>
+
+</html>
